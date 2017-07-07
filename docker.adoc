@@ -1,0 +1,82 @@
+= Docker Push Scripts
+
+[source, bash]
+.*ls -lR*
+----
+# ls -lR
+.:
+total 4
+-rw-r--r--. 1 root root 426 Jun 23 17:03 Dockerfile
+drwxr-xr-x. 2 root root  42 Jul  7 23:54 target
+
+./target:
+total 124356
+-rw-r--r--. 1 root root 127338863 Jul  7 23:54 vdb-datafederation-swarm.jar
+----
+
+[source, bash]
+.*docker build*
+----
+# docker build -t vdb-datafederation-swarm .
+Sending build context to Docker daemon 127.3 MB
+Step 1/6 : FROM openjdk:8u131-jre
+ ---> 407a6774b2b5
+Step 2/6 : LABEL maintainer "kylinsoong.1214@gmail.com"
+ ---> Running in ebe8b5dff0e3
+ ---> 36b507d050f9
+Removing intermediate container ebe8b5dff0e3
+Step 3/6 : WORKDIR /app
+ ---> 092b19cbf3ec
+Removing intermediate container 8b0557dd0af8
+Step 4/6 : ADD target/vdb-datafederation-swarm.jar /app
+ ---> 0edb4157ddfa
+Removing intermediate container 1df13016202e
+Step 5/6 : EXPOSE 31000
+ ---> Running in bb58e525c903
+ ---> 0bc5ce30f04c
+Removing intermediate container bb58e525c903
+Step 6/6 : CMD java -jar vdb-datafederation-swarm.jar
+ ---> Running in 30f6cfce1058
+ ---> 219cf484b287
+Removing intermediate container 30f6cfce1058
+Successfully built 219cf484b287
+----
+
+[source, bash]
+.*docker run*
+----
+# docker run -e MYSQL_HOST=localhost -p 31000:31000 vdb-datafederation-swarm
+----
+
+[source, bash]
+.*docker login*
+----
+# docker login
+Login with your Docker ID to push and pull images from Docker Hub. If you don't have a Docker ID, head over to https://hub.docker.com to create one.
+----
+
+[source, bash]
+.*docker tag*
+----
+# docker tag vdb-datafederation-swarm kylinsoong/vdb-datafederation-swarm:1.1
+----
+
+[source, bash]
+.*docker push*
+----
+# docker push kylinsoong/vdb-datafederation-swarm:1.1 
+The push refers to a repository [docker.io/kylinsoong/vdb-datafederation-swarm]
+833b949ba4af: Pushed 
+7e14bbd88a37: Pushed 
+e2fcef2346a2: Layer already exists 
+26b85245a0be: Layer already exists 
+780f4512a4e4: Layer already exists 
+3b12b0dc07f8: Layer already exists 
+78851567d1e6: Layer already exists 
+4e48c410e6fb: Layer already exists 
+4902b007e6a7: Layer already exists 
+007ab444b234: Layer already exists 
+1.1: digest: sha256:fbafdbf5f4818fbfc2173a4f1e3bd655931d189e4e311ecb4ac6959de8fe92de size: 2413
+----
+
+To verify the push from https://hub.docker.com/r/kylinsoong/vdb-datafederation-swarm/tags/

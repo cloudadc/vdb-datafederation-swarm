@@ -1,0 +1,217 @@
+
+= What is it?
+
+> Please raise any issues found with this example in our JIRA:
+> https://issues.jboss.org/projects/TEIID
+
+This example demonstrates:
+
+* how to define a vdb to enable data federation across multiple data sources (i.e., relational and text file).
+* how to use wildfly swarm to configure translaors, resource adapters and run teiid as a swarm uber jar.
+
+== Project `pom.xml`
+
+The project is a normal maven project with `jar` packaging
+
+[source,xml]
+----
+<packaging>jar</packaging>
+----
+
+The project adds a `<plugin>` to configure `wildfly-swarm-plugin` to create the runnable `.jar`.
+
+[source,xml]
+----
+<plugin>
+  <groupId>org.wildfly.swarm</groupId>
+  <artifactId>wildfly-swarm-plugin</artifactId>
+  <configuration>
+    <mainClass>org.wildfly.swarm.teiid.examples.Main</mainClass>
+  </configuration>
+  ....
+</plugin>
+----
+
+To define the needed parts of WildFly Swarm, a few dependencies(teiid, datasources, resource-adapters) are added.
+
+[source,xml]
+----
+<dependency>
+    <groupId>org.wildfly.swarm</groupId>
+    <artifactId>teiid</artifactId>
+    <version>${version.wildfly-swarm}</version>
+</dependency>
+<dependency>
+    <groupId>org.wildfly.swarm</groupId>
+    <artifactId>datasources</artifactId>
+    <version>${version.wildfly-swarm}</version>
+</dependency>          
+<dependency>
+    <groupId>org.wildfly.swarm</groupId>
+    <artifactId>resource-adapters</artifactId>
+    <version>${version.wildfly-swarm}</version>
+</dependency> 
+----
+
+To support teiid tranalators/connectors in general, the additional dependencies are added.
+
+[source,xml]
+----
+<dependency>
+    <groupId>org.jboss.teiid.connectors</groupId>
+    <artifactId>translator-jdbc</artifactId>
+    <version>${version.teiid}</version>
+</dependency>
+<dependency>
+    <groupId>com.h2database</groupId>
+    <artifactId>h2</artifactId>
+    <version>${version.h2}</version>
+</dependency>
+<dependency>
+    <groupId>org.jboss.teiid.connectors</groupId>
+    <artifactId>translator-file</artifactId>
+    <version>${version.teiid}</version>
+</dependency>
+<dependency>
+    <groupId>org.jboss.teiid.connectors</groupId>
+    <artifactId>connector-file</artifactId>
+    <version>${version.teiid}</version>
+</dependency>
+----
+
+== Project `main()`
+
+This example configured teiid translators, datasource, resource adapter and deploy vdb programatically.
+
+[source,java]
+----
+public static void main(String[] args) throws Exception {
+
+    Swarm swarm = new Swarm();        
+    swarm.fraction(new TeiidFraction()
+             .translator("h2", t -> t.module("org.jboss.teiid.translator.jdbc"))
+             .translator("file", t -> t.module("org.jboss.teiid.translator.file")))
+         .fraction(new DatasourcesFraction()
+             .jdbcDriver("h2", driver -> {
+                 driver.driverClassName("org.h2.Driver");
+                 driver.xaDatasourceClass("org.h2.jdbcx.JdbcDataSource");
+                 driver.driverModuleName("com.h2database.h2");
+             })
+             .dataSource("accounts-ds", ds -> {
+                 ds.driverName("h2");
+                 ds.connectionUrl(URL);
+                 ds.userName("sa");
+                 ds.password("sa");
+             }))
+         .fraction(new ResourceAdapterFraction()
+             .resourceAdapter("fileQS", rac -> rac.module("org.jboss.teiid.resource-adapter.file")
+                 .connectionDefinitions("fileQS", cdc -> cdc.className("org.teiid.resource.adapter.file.FileManagedConnectionFactory")
+                     .jndiName("java:/marketdata-file")
+                     .configProperties("ParentDirectory", cpc -> cpc.value(marketdataDir))
+                     .configProperties("AllowParentPaths", cpc -> cpc.value("true")))));
+    swarm.start();
+
+    VDBArchive vdb = ShrinkWrap.create(VDBArchive.class);
+    vdb.vdb(Main.class.getClassLoader().getResourceAsStream("portfolio-vdb.xml"));
+    swarm.deploy(vdb);   
+}
+----
+
+> This example depend on a series of jboss modules, rerfer to `src/main/resources/modules` for details. Alternatively, if you want define moduls externally, you can build the modules externally, then add your modules as a dependency, teiid feature back can be used to build teiid related modules.
+
+== Run
+
+To build the project
+
+[source,java]
+----
+mvn clean package
+----
+
+once build success, a `vdb-datafederation-swarm.jar` will generated under 'target' folder, run the example via
+
+[source,java]
+----
+java -jar vdb-datafederation-swarm.jar
+----
+
+By default, jdbc transport bind on `0.0.0.0` and port `31000`, system properties can be used eto bind a specific IP and Port, to bind a IP use `-Dswarm.bind.address=127.0.0.1`, to bind a port use `-Dswarm.teiid.jdbc.port=31000`.
+
+== Run with Docker
+
+* Build docker image via
+
+[source,shell]
+----
+docker build -t vdb-datafederation-swarm .
+----
+
+* Run the example, mapping your machine’s port 31000 to the container’s EXPOSE port 31000 using -p: 
+
+[source,shell]
+----
+docker run -p 31000:31000 vdb-datafederation-swarm
+----
+
+* Alternatively, the example can run from a DockerHub image
+
+[source,shell]
+----
+docker run -p 31000:31000 kylinsoong/vdb-datafederation-swarm:1.0
+----
+
+== Query Demonstrations
+
+link:../simpleclient/README.adoc#_execution[Simple Java Client] for sample SQL Queries, link:../simpleclient/SQuirreL.adoc[SQuirreL Client] for a fully featured SQL Queries.
+
+[source,sql]
+.*Example - queries the relational source*
+----
+mvn exec:java -Dvdb="Portfolio" -Dsql="select * from product"
+----
+
+[source,sql]
+.*Example - queries the text file-based source*
+----
+mvn exec:java -Dvdb="Portfolio" -Dsql="select stock.* from (call MarketData.getTextFiles('*.txt')) f, TEXTTABLE(f.file COLUMNS symbol string, price bigdecimal HEADER) stock"
+----
+
+[source,sql]
+.*Example - queries the text file-based source view*
+----
+mvn exec:java -Dvdb="Portfolio" -Dsql="select * from StockPrices"
+----
+
+[source,sql]
+.*Example - performs a join between the relational source and the text file-based source*
+----
+mvn exec:java -Dvdb="Portfolio" -Dsql="select product.symbol, stock.price, company_name from product, (call MarketData.getTextFiles('*.txt')) f, TEXTTABLE(f.file COLUMNS symbol string, price bigdecimal HEADER) stock where product.symbol=stock.symbol"
+----
+
+NOTE: The files returned from the getTextFiles procedure are passed to the TEXTTABLE table function (via the nested table correlated reference f.file). The TEXTTABLE function expects a text file with a HEADER containing entries for at least symbol and price columns.
+
+[source,sql]
+.*Example - queries the federated view*
+----
+mvn exec:java -Dvdb="Portfolio" -Dsql="select * from Stock"
+----
+
+[source,sql]
+.*Example - native query*
+----
+mvn exec:java -Dvdb="Portfolio" -Dsql="select x.* FROM (call native('select Shares_Count, MONTHNAME(Purchase_Date) from Holdings')) w, ARRAYTABLE(w.tuple COLUMNS "Shares_Count" integer, "MonthPurchased" string ) AS x"
+----
+
+NOTE: Issue query that contains a NATIVE sql call that will be directly issued against the H2 database. This is useful if the function isn't supported by the translator (check the documentation for the types of translators that support NATIVE sql). Note that the translator override in the vdb xml enabling support for native queries has to be set.
+
+[source,sql]
+.*Example - SQL*
+----
+SELECT * FROM product
+SELECT stock.* from (call MarketData.getTextFiles('*.txt')) f, TEXTTABLE(f.file COLUMNS symbol string, price bigdecimal HEADER) stock
+SELECT * FROM StockPrices
+SELECT product.symbol, stock.price, company_name from product, (call MarketData.getTextFiles('*.txt')) f, TEXTTABLE(f.file COLUMNS symbol string, price bigdecimal HEADER) stock where product.symbol=stock.symbol
+SELECT * FROM Stock
+SELECT x.* FROM (call native('select Shares_Count, MONTHNAME(Purchase_Date) from Holdings')) w, ARRAYTABLE(w.tuple COLUMNS "Shares_Count" integer, "MonthPurchased" string ) AS x
+----
+

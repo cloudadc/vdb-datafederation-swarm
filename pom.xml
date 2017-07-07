@@ -1,0 +1,112 @@
+<?xml version="1.0"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>org.wildfly.swarm.teiid.examples</groupId>
+        <artifactId>examples-parent</artifactId>
+        <version>1.0.0-SNAPSHOT</version>
+    </parent> 
+    <artifactId>vdb-datafederation</artifactId>  
+    <packaging>jar</packaging>
+    <name>Data Federation</name>
+    <description>WildFly Swarm Teiid vdb datafederation</description>
+
+    <properties>
+        <version.wildfly-swarm>2017.6.0</version.wildfly-swarm>
+        <version.teiid>9.2.0.Final</version.teiid>
+        <version.mysql>5.1.39</version.mysql>
+
+        <version.compiler.plugin>3.5.1</version.compiler.plugin>
+        <maven.compiler.target>1.8</maven.compiler.target>
+        <maven.compiler.source>1.8</maven.compiler.source>
+    </properties>
+
+
+    <dependencies>      
+	    <dependency>
+	        <groupId>org.wildfly.swarm</groupId>
+	        <artifactId>teiid</artifactId>
+	        <version>${version.wildfly-swarm}</version>
+	    </dependency>
+	    
+	    <dependency>
+            <groupId>org.wildfly.swarm</groupId>
+            <artifactId>datasources</artifactId>
+            <version>${version.wildfly-swarm}</version>
+        </dependency>  
+        
+        <dependency>
+	        <groupId>org.wildfly.swarm</groupId>
+	        <artifactId>resource-adapters</artifactId>
+	        <version>${version.wildfly-swarm}</version>
+	    </dependency> 
+	    
+	    <dependency>
+	        <groupId>org.jboss.teiid.connectors</groupId>
+	        <artifactId>translator-jdbc</artifactId>
+	        <version>${version.teiid}</version>
+	    </dependency>
+	    
+	    <dependency>
+            <groupId>mysql</groupId>
+            <artifactId>mysql-connector-java</artifactId>
+            <version>${version.mysql}</version>
+        </dependency>
+        
+        <dependency>
+			<groupId>org.jboss.teiid.connectors</groupId>
+			<artifactId>file-api</artifactId>
+			<version>${version.teiid}</version>
+		</dependency>
+        
+        <dependency>
+            <groupId>org.jboss.teiid.connectors</groupId>
+            <artifactId>translator-file</artifactId>
+            <version>${version.teiid}</version>
+        </dependency>
+                
+        <dependency>
+			<groupId>org.jboss.teiid.connectors</groupId>
+			<artifactId>connector-file</artifactId>
+			<version>${version.teiid}</version>
+		</dependency>
+
+
+    </dependencies>
+
+    <build>
+        <finalName>${project.artifactId}</finalName>
+        <resources>
+            <resource>
+                <directory>src/main/resources</directory>
+                <filtering>true</filtering>
+            </resource>
+        </resources>
+	<pluginManagement>
+            <plugins>
+                <plugin>
+                    <groupId>org.wildfly.swarm</groupId>
+                    <artifactId>wildfly-swarm-plugin</artifactId>
+                    <version>${version.wildfly-swarm}</version>
+                </plugin>
+            </plugins>
+        </pluginManagement>
+        <plugins>
+	        <plugin>
+                <groupId>org.wildfly.swarm</groupId>
+                <artifactId>wildfly-swarm-plugin</artifactId>
+                <configuration>
+                    <mainClass>org.wildfly.swarm.teiid.examples.Main</mainClass>
+                </configuration>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>package</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+</project>
+
